@@ -1,0 +1,10 @@
+trigger op_trig_01 on Opportunity (Before Insert, Before Update) {
+/*
+    This trigger enforces the rule that Flight Start Date cannot be after Flight End Date
+*/
+    for(Opportunity a: Trigger.New){
+        Decimal diff = a.campaign_length__c;
+        if(diff < 0)
+            a.addError('The Flight End Date cannot be after the Flight Start Date');
+    }
+}

@@ -1,0 +1,59 @@
+trigger op_trig_02 on Opportunity (After Insert, After Update) {
+    List<String> mnthName = new List<String> { 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC' };
+
+    if(Trigger.isAfter && Trigger.isInsert){
+        for(Opportunity o: Trigger.new){  
+            Monthly_Forecast__c mf= new Monthly_Forecast__c();
+            mf.Name = 'Forecast for 05/2016';
+            mf.Month__c = 'May 2016';        
+            mf.Month_Date__c = o.Flight_Start_Date__c;
+            mf.ForecastAmount__c = 4705.88;
+            mf.Opportunity__c = o.id;
+            insert mf;  
+        }
+    }
+    
+    if(Trigger.isAfter && Trigger.isUpdate){
+        for (Opportunity o: Trigger.new){
+            Opportunity old = Trigger.oldMap.get(o.ID);
+                if(o.Flight_Start_Date__c != old.Flight_Start_Date__c ||
+                    o.Flight_End_Date__c != old.Flight_End_Date__c ||
+                    o.Amount != old.Amount){
+                    for(Monthly_Forecast__c[] mf:[Select f.ID,f.Name 
+                                                    From Monthly_Forecast__c f 
+                                                    where f.Opportunity__c in :Trigger.oldMap.keySet()]){ 
+                        delete mf;
+                    }  
+                    
+                    if(o.Flight_Start_Date__c !=null && o.Flight_End_Date__c !=null && o.AmountbyDay__c !=null){
+                        Integer monthsBetween = o.Flight_Start_Date__c.monthsBetween(o.Flight_End_Date__c);
+                        Date startDate = o.Flight_Start_Date__c;
+                        Date endDate = o.Flight_End_Date__c;
+                        Double amtbyday = o.AmountbyDay__c;
+                        
+                        while(startDate <= endDate){
+                            Integer day = startDate.day();
+                            Integer no_of_mnth_days = Date.daysInMonth(startDate.year(),startDate.month());
+                            Integer tot_flight_mnthly = 0;
+                            if(startDate.month() != endDate.month()){
+                                tot_flight_mnthly = no_of_mnth_days - day + 1; 
+                            }else{
+                                tot_flight_mnthly = endDate.day();
+                            }
+                            
+                            Monthly_Forecast__c mf= new Monthly_Forecast__c();                                                    
+                            mf.Name = 'Forecast for ' + string.valueof(startDate.month()) + '/' + string.valueof(startDate.year());
+                            mf.Month__c = mnthName[startDate.month()-1] + ' ' + string.valueof(startDate.year());
+                            mf.Month_Date__c = startDate;
+                            mf.ForecastAmount__c = tot_flight_mnthly * amtbyday;
+                            mf.Opportunity__c = o.id;                            
+                            insert mf;
+                                             
+                            startDate = startDate.addDays(tot_flight_mnthly);
+
+                        }                      
+                    }
+                }
+        }
+    }
+}
