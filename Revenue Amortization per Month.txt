@@ -1,4 +1,7 @@
 trigger op_trig_02 on Opportunity (After Insert, After Update) {
+/*
+    This trigger amortizes the revenue over days per month
+*/
     List<String> mnthName = new List<String> { 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC' };
 
     if(Trigger.isAfter && Trigger.isInsert){
