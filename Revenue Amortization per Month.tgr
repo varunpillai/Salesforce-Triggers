@@ -1,4 +1,4 @@
-trigger op_trig_02 on Opportunity (After Insert, After Update) {
+trigger MonthlyAmountAmort on Opportunity (After Insert, After Update) {
 /*
     This trigger amortizes the revenue over days per month
 */
@@ -19,7 +19,7 @@ trigger op_trig_02 on Opportunity (After Insert, After Update) {
                             if(startDate.month() != endDate.month()){
                                 tot_flight_mnthly = no_of_mnth_days - day + 1;
                             }else{
-                                tot_flight_mnthly = endDate.day();
+                                tot_flight_mnthly = endDate.day()-day+1;
                                 startDate = endDate;
                             }
                             
@@ -37,13 +37,14 @@ trigger op_trig_02 on Opportunity (After Insert, After Update) {
                     }
                 }
     }
-    
+
     if(Trigger.isAfter && Trigger.isUpdate){
         for (Opportunity o: Trigger.new){
             Opportunity old = Trigger.oldMap.get(o.ID);
                 if(o.Flight_Start_Date__c != old.Flight_Start_Date__c ||
                     o.Flight_End_Date__c != old.Flight_End_Date__c ||
-                    o.Amount != old.Amount){
+                    o.Amount != old.Amount ||
+                    o.StageName != old.StageName){
                     for(Monthly_Forecast__c[] mf:[Select f.ID,f.Name 
                                                     From Monthly_Forecast__c f 
                                                     where f.Opportunity__c in :Trigger.oldMap.keySet()]){ 
@@ -63,7 +64,7 @@ trigger op_trig_02 on Opportunity (After Insert, After Update) {
                             if(startDate.month() != endDate.month()){
                                 tot_flight_mnthly = no_of_mnth_days - day + 1; 
                             }else{
-                                tot_flight_mnthly = endDate.day();
+                                tot_flight_mnthly = endDate.day()-day + 1;
                                 startDate = endDate;
                             }
                             
