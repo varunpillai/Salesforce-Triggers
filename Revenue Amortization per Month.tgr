@@ -3,7 +3,8 @@ trigger MonthlyAmountAmort on Opportunity (After Insert, After Update) {
     This trigger amortizes the revenue over days per month
 */
     List<String> mnthName = new List<String> { 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC' };
-
+  List<Monthly_Forecast__c> mflist = new List<Monthly_Forecast__c>{};
+  
     if(Trigger.isAfter && Trigger.isInsert){
         for (Opportunity o: Trigger.new){ 
                     if(o.Flight_Start_Date__c !=null && o.Flight_End_Date__c !=null && o.AmountbyDay__c !=null){
@@ -29,28 +30,41 @@ trigger MonthlyAmountAmort on Opportunity (After Insert, After Update) {
                             mf.Month_Date__c = startDate;
                             mf.ForecastAmount__c = tot_flight_mnthly * amtbyday;
                             mf.Opportunity__c = o.id;                            
-                            insert mf;
+                            mflist.add(mf);
                                              
                             startDate = startDate.addDays(tot_flight_mnthly);
 
                         }                      
                     }
                 }
+    insert mflist;
     }
-
+  
     if(Trigger.isAfter && Trigger.isUpdate){
-        for (Opportunity o: Trigger.new){
-            Opportunity old = Trigger.oldMap.get(o.ID);
-                if(o.Flight_Start_Date__c != old.Flight_Start_Date__c ||
+    Set<Id> oppid = new Set<Id>();
+    for (Opportunity o: Trigger.new){
+      oppid.add(o.Id);
+    }
+      List<Monthly_Forecast__c> mfdel =   [Select f.ID,f.Name,f.Opportunity__c
+                                             From Monthly_Forecast__c f 
+                                             where f.Opportunity__c in :oppid];
+    List<Monthly_Forecast__c> mflisttodel = new List<Monthly_Forecast__c>{};
+    
+    for(Monthly_Forecast__c mfo: mfdel){
+      for(Opportunity o: Trigger.new){
+        Opportunity old = Trigger.oldMap.get(o.ID);
+        if((o.Flight_Start_Date__c != old.Flight_Start_Date__c ||
                     o.Flight_End_Date__c != old.Flight_End_Date__c ||
-                    o.Amount != old.Amount ||
-                    o.StageName != old.StageName){
-                    for(Monthly_Forecast__c[] mf:[Select f.ID,f.Name 
-                                                    From Monthly_Forecast__c f 
-                                                    where f.Opportunity__c in :Trigger.oldMap.keySet()]){ 
-                        delete mf;
-                    }  
-                    
+                    o.AmountbyDay__c != old.AmountbyDay__c ||
+                    o.StageName != old.StageName)&& mfo.Opportunity__c == o.id){
+          mflisttodel.add(mfo);
+                }
+      }
+    }
+    delete mflisttodel;
+    
+      for(Opportunity o: Trigger.new){
+        Opportunity old = Trigger.oldMap.get(o.ID);                  
                     if(o.Flight_Start_Date__c !=null && o.Flight_End_Date__c !=null && o.AmountbyDay__c !=null){
                         Integer monthsBetween = o.Flight_Start_Date__c.monthsBetween(o.Flight_End_Date__c);
                         Date startDate = o.Flight_Start_Date__c;
@@ -74,12 +88,12 @@ trigger MonthlyAmountAmort on Opportunity (After Insert, After Update) {
                             mf.Month_Date__c = startDate;
                             mf.ForecastAmount__c = tot_flight_mnthly * amtbyday;
                             mf.Opportunity__c = o.id;                            
-                            insert mf;     
+                            mflist.add(mf);     
                             
                             startDate = startDate.addDays(tot_flight_mnthly);                                                                 
                         }                      
                     }
                 }
-        }
+    insert mflist;
     }
 }
