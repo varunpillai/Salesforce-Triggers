@@ -1,0 +1,172 @@
+trigger WeeklyAmountAmort on Opportunity (after insert, after update) {
+/*
+    This trigger amortizes the revenue over days per week
+*/
+    List<Weekly_Flight__c> wflist = new List<Weekly_Flight__c>{};
+    System.Debug('Trigger On');
+    if(Trigger.isAfter && Trigger.isInsert){
+        System.Debug('Trigger On Insert');
+        
+        for (Opportunity o: Trigger.new){ 
+                    if(o.Flight_Start_Date__c !=null && o.Flight_End_Date__c !=null && o.AmountbyDay__c !=null){
+                        Date startDate = o.Flight_Start_Date__c;
+                        Date endDate = o.Flight_End_Date__c;
+                        Double amtbyday = o.AmountbyDay__c;
+						Integer flightdays = startDate.daysBetween(endDate)+1;
+						Integer flightdaysofwk = 0;
+						Boolean start_end_same_wk = Boolean.valueOf('false');
+						String weekNumStr= '';
+						
+                        while(startDate <= endDate && flightdays >= 0){                            	                           
+//							Get Day of Year for Start Date
+							Date firstDayofYear = Date.newInstance(startDate.year(), 1, 1);
+							Integer doyStartDate =   firstDayofYear.daysBetween(startDate) + 1;
+							System.Debug('doyStartDate:'+doyStartDate);
+							
+//							Get Week Start Date of the Start Date                      	                 	
+                            Date wkstartdate = startDate.toStartofWeek();
+
+//							Get Day of the Week(0 = Sun) for start date                  
+							Integer dayofwk = wkstartdate.daysBetween(startDate);
+
+//							Get Day of the Week(0 = Sun) for First Day of the Year
+							Date wkstartdateJan1 = firstDayofYear.toStartofWeek();                  
+							Integer dowJan1 = wkstartdateJan1.daysBetween(firstDayofYear);
+							
+//							Check if End Date falls in the same week
+							if(wkstartdate.addDays(7)< endDate){
+								start_end_same_wk = Boolean.valueOf('false');
+							}
+							else{
+								start_end_same_wk = Boolean.valueOf('true');
+							}					
+//							Get Flight Days of the Week  
+							if(flightdays <= 7 && start_end_same_wk){
+								flightdaysofwk = flightdays;
+								flightdays=0;
+							}else{
+								flightdaysofwk = 7 - dayofwk;
+								flightdays=flightdays - flightdaysofwk;
+							}
+							System.Debug('flightdays:'+flightdays);
+							System.Debug('flightdaysofwk:'+flightdaysofwk);
+								                   
+							Integer weekNum = ((doyStartDate + 6)/7);
+							
+							if(dayofwk < dowJan1){
+								weekNum++;
+							}					
+							
+							System.Debug('weekNum:'+weekNum);
+							if(weekNum < 10){
+								weekNumStr = '0' + string.valueof(weekNum);
+							}
+							else{
+								weekNumStr = string.valueof(weekNum);
+							}
+                            Weekly_Flight__c wf= new Weekly_Flight__c();                                                    
+                            wf.Name = 'Amount for Week ' + weekNumStr + ' of ' + string.valueof(startDate.year());
+                            wf.Week__c = 'Week ' + weekNumStr;
+                            wf.Week_Start_Date__c = startDate;
+                            wf.Flight_Amount__c = flightdaysofwk * amtbyday;
+                            wf.Opportunity__c = o.id;                            
+                            wflist.add(wf);
+                                             
+                            startDate = startDate.addDays(flightdaysofwk);
+
+                        }                      
+                    }
+                }
+        insert wflist;
+    }
+    
+    if(Trigger.isAfter && Trigger.isUpdate){
+        System.Debug('Trigger On Update');
+        Set<Id> oppid = new Set<Id>();
+        for (Opportunity o: Trigger.new){
+            oppid.add(o.Id);
+        }
+        List<Weekly_Flight__c> wfdel =   [Select f.ID,f.Name,f.Opportunity__c
+                                             From Weekly_Flight__c f 
+                                             where f.Opportunity__c in :oppid];
+        List<Weekly_Flight__c> wflisttodel = new List<Weekly_Flight__c>{};
+        
+        for(Weekly_Flight__c wfo: wfdel){                    
+                    wflisttodel.add(wfo);           
+        }
+        delete wflisttodel;
+        
+            for(Opportunity o: Trigger.new){
+                Opportunity old = Trigger.oldMap.get(o.ID);                  
+                    if(o.Flight_Start_Date__c !=null && o.Flight_End_Date__c !=null && o.AmountbyDay__c !=null){
+                        Date startDate = o.Flight_Start_Date__c;
+                        Date endDate = o.Flight_End_Date__c;
+                        Double amtbyday = o.AmountbyDay__c;
+						Integer flightdays = startDate.daysBetween(endDate)+1;
+						Integer flightdaysofwk = 0;
+						Boolean start_end_same_wk = Boolean.valueOf('false');
+						String weekNumStr= '';
+						
+                        while(startDate <= endDate && flightdays >= 0){                            	                           
+//							Get Day of Year for Start Date
+							Date firstDayofYear = Date.newInstance(startDate.year(), 1, 1);
+							Integer doyStartDate =   firstDayofYear.daysBetween(startDate) + 1;
+							System.Debug('doyStartDate:'+doyStartDate);
+							
+//							Get Week Start Date of the Start Date                      	                 	
+                            Date wkstartdate = startDate.toStartofWeek();
+
+//							Get Day of the Week(0 = Sun) for start date                  
+							Integer dayofwk = wkstartdate.daysBetween(startDate);
+
+//							Get Day of the Week(0 = Sun) for First Day of the Year
+							Date wkstartdateJan1 = firstDayofYear.toStartofWeek();                  
+							Integer dowJan1 = wkstartdateJan1.daysBetween(firstDayofYear);
+							
+//							Check if End Date falls in the same week
+							if(wkstartdate.addDays(7)< endDate){
+								start_end_same_wk = Boolean.valueOf('false');
+							}
+							else{
+								start_end_same_wk = Boolean.valueOf('true');
+							}					
+//							Get Flight Days of the Week  
+							if(flightdays <= 7 && start_end_same_wk){
+								flightdaysofwk = flightdays;
+								flightdays=0;
+							}else{
+								flightdaysofwk = 7 - dayofwk;
+								flightdays=flightdays - flightdaysofwk;
+							}
+							System.Debug('flightdays:'+flightdays);
+							System.Debug('flightdaysofwk:'+flightdaysofwk);
+								                   
+							Integer weekNum = ((doyStartDate + 6)/7);
+							
+							if(dayofwk < dowJan1){
+								weekNum++;
+							}					
+							
+							System.Debug('weekNum:'+weekNum);
+							if(weekNum < 10){
+								weekNumStr = '0' + string.valueof(weekNum);
+							}
+							else{
+								weekNumStr = string.valueof(weekNum);
+							}
+                            Weekly_Flight__c wf= new Weekly_Flight__c();                                                    
+                            wf.Name = 'Amount for Week ' + weekNumStr + ' of ' + string.valueof(startDate.year());
+                            wf.Week__c = 'Week ' + weekNumStr;
+                            wf.Week_Start_Date__c = startDate;
+                            wf.Flight_Amount__c = flightdaysofwk * amtbyday;
+                            wf.Opportunity__c = o.id;                            
+                            wflist.add(wf);
+                                             
+                            startDate = startDate.addDays(flightdaysofwk);
+
+                        }                      
+                    }
+                }
+        insert wflist;
+    }
+}
